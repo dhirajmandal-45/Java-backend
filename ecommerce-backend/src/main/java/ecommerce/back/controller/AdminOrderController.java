@@ -3,7 +3,12 @@ package ecommerce.back.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import ecommerce.back.entity.Order;
 import ecommerce.back.repository.OrderRepository;
@@ -18,10 +23,9 @@ public class AdminOrderController {
         this.orderRepository = orderRepository;
     }
 
-    // ==========================================
+    // ============================================================
     // GET ALL ORDERS
-    // GET /admin/orders
-    // ==========================================
+    // ============================================================
 
     @GetMapping
     public ResponseEntity<List<Order>> getAllOrders() {
@@ -31,18 +35,16 @@ public class AdminOrderController {
         return ResponseEntity.ok(orders);
     }
 
-    // ==========================================
+    // ============================================================
     // UPDATE ORDER STATUS
-    // PUT /admin/orders/{id}/status
-    // ==========================================
+    // ============================================================
 
     @PutMapping("/{id}/status")
     public ResponseEntity<Order> updateOrderStatus(
             @PathVariable Long id,
             @RequestBody StatusRequest request) {
 
-        Order order = orderRepository
-                .findById(id)
+        Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         order.setStatus(request.getStatus());
@@ -52,9 +54,9 @@ public class AdminOrderController {
         return ResponseEntity.ok(updatedOrder);
     }
 
-    // ==========================================
+    // ============================================================
     // STATUS REQUEST
-    // ==========================================
+    // ============================================================
 
     public static class StatusRequest {
 

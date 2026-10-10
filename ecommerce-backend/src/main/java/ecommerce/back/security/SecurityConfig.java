@@ -41,20 +41,22 @@ public class SecurityConfig {
 
                 http
 
-                                // Disable CSRF because we are using JWT
+                                // Disable CSRF because we use JWT
                                 .csrf(csrf -> csrf.disable())
 
-                                // Enable CORS for React frontend
+                                // Enable CORS
                                 .cors(cors -> cors
                                                 .configurationSource(corsConfigurationSource()))
 
-                                // JWT is stateless
-                                .sessionManagement(session -> session.sessionCreationPolicy(
-                                                SessionCreationPolicy.STATELESS))
+                                // JWT = stateless
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(
+                                                                SessionCreationPolicy.STATELESS))
 
-                                // =================================================
-                                // AUTHORIZATION RULES
-                                // =================================================
+                                // ====================================================
+                                // AUTHORIZATION
+                                // ====================================================
+
                                 .authorizeHttpRequests(auth -> auth
 
                                                 // -------------------------------
@@ -66,7 +68,6 @@ public class SecurityConfig {
                                                                 "/freshers/login")
                                                 .permitAll()
 
-                                                // Anyone can see products/categories
                                                 .requestMatchers(
                                                                 "/products/**",
                                                                 "/categories/**")
@@ -76,8 +77,14 @@ public class SecurityConfig {
                                                 // ADMIN ONLY
                                                 // -------------------------------
 
-                                                // Only ROLE_ADMIN can access /admin/**
                                                 .requestMatchers("/admin/**")
+                                                .hasRole("ADMIN")
+
+                                                // -------------------------------
+                                                // GROWTH ADMIN ONLY
+                                                // -------------------------------
+
+                                                .requestMatchers("/growth/**")
                                                 .hasRole("ADMIN")
 
                                                 // -------------------------------
@@ -87,13 +94,13 @@ public class SecurityConfig {
                                                 .anyRequest()
                                                 .authenticated())
 
-                                // Disable default Spring login
+                                // Disable default login
                                 .formLogin(form -> form.disable())
 
                                 // Disable HTTP Basic
                                 .httpBasic(basic -> basic.disable())
 
-                                // Add our JWT filter
+                                // JWT filter
                                 .addFilterBefore(
                                                 jwtAuthFilter,
                                                 UsernamePasswordAuthenticationFilter.class);
@@ -123,14 +130,14 @@ public class SecurityConfig {
                                                 "DELETE",
                                                 "OPTIONS"));
 
-                // Allow JWT Authorization header
+                // Allow Authorization header
                 configuration.setAllowedHeaders(
                                 List.of("*"));
 
                 // Allow credentials
                 configuration.setAllowCredentials(true);
 
-                // Apply configuration to all endpoints
+                // Apply CORS to all APIs
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 
                 source.registerCorsConfiguration(

@@ -24,9 +24,7 @@ public class CloudinaryService {
         Map<String, Object> result = (Map<String, Object>) cloudinary.uploader().upload(
                 file.getBytes(),
                 ObjectUtils.asMap(
-                        "folder", "ecommerce/products"
-                )
-        );
+                        "folder", "ecommerce/products"));
 
         return result.get("secure_url").toString();
     }

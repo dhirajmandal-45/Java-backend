@@ -24,12 +24,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     // ============================================================
-    // SKIP JWT FILTER FOR LOGIN AND SIGNUP
-    // ============================================================
-    // Users don't have a JWT token when they are signing up
-    // or logging in.
-    //
-    // Therefore, JWT checking is not required for these endpoints.
+    // SKIP LOGIN AND SIGNUP
     // ============================================================
 
     @Override
@@ -44,18 +39,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     // ============================================================
     // JWT FILTER
     // ============================================================
-    // This method runs for requests that pass through
-    // the JWT authentication filter.
-    //
-    // Example:
-    //
-    // GET /users/profile
-    // GET /admin/products
-    //
-    // Frontend sends:
-    //
-    // Authorization: Bearer <JWT>
-    // ============================================================
 
     @Override
     protected void doFilterInternal(
@@ -64,163 +47,133 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
-        // ========================================================
-        // 1. GET AUTHORIZATION HEADER
-        // ========================================================
-        // The frontend sends the JWT inside this header.
-        //
-        // Example:
-        //
-        // Authorization: Bearer eyJhbGciOiJIUzI1...
-        // ========================================================
-
         String authHeader = request.getHeader("Authorization");
 
         // ========================================================
-        // 2. CHECK WHETHER JWT EXISTS
-        // ========================================================
-        // If there is no Authorization header,
-        // continue the request.
-        //
-        // Spring Security will decide later whether
-        // authentication is required for this endpoint.
+        // NO TOKEN
         // ========================================================
 
-        if (authHeader == null ||
-                !authHeader.startsWith("Bearer ")) {
+        if (authHeader == null
+                || !authHeader.startsWith("Bearer ")) {
+
+            System.out.println(
+                    "JWT: No token -> "
+                            + request.getServletPath());
 
             filterChain.doFilter(request, response);
             return;
         }
-
-        // ========================================================
-        // 3. REMOVE "Bearer "
-        // ========================================================
-        // Example:
-        //
-        // "Bearer abc123"
-        //
-        // becomes:
-        //
-        // "abc123"
-        // ========================================================
 
         String token = authHeader.substring(7);
 
         try {
 
             // ====================================================
-            // 4. EXTRACT EMAIL FROM JWT
-            // ====================================================
-            // JwtService stores the user's email
-            // as the JWT subject.
+            // EXTRACT USER INFORMATION
             // ====================================================
 
             String email = jwtService.extractUsername(token);
 
-            // ====================================================
-            // 5. EXTRACT ROLE FROM JWT
-            // ====================================================
-            // Example:
-            //
-            // ADMIN
-            // USER
-            //
-            // This role will be used by Spring Security
-            // to protect admin routes.
-            // ====================================================
-
             String role = jwtService.extractRole(token);
 
             // ====================================================
-            // 6. VALIDATE JWT
-            // ====================================================
-            // Check that:
-            //
-            // - JWT signature is valid
-            // - JWT is not expired
-            // - JWT is a valid token
+            // DEBUG INFORMATION
             // ====================================================
 
-            if (email != null &&
-                    jwtService.isTokenValid(token)) {
+            System.out.println(
+                    "==========================================");
 
-                // =================================================
-                // 7. CREATE SPRING SECURITY AUTHORITY
-                // =================================================
-                // Spring Security's:
-                //
-                // hasRole("ADMIN")
-                //
-                // internally expects:
-                //
-                // ROLE_ADMIN
-                //
-                // Therefore:
-                //
-                // ADMIN → ROLE_ADMIN
-                // USER → ROLE_USER
-                // =================================================
+            System.out.println(
+                    "JWT REQUEST : "
+                            + request.getServletPath());
 
-                SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
+            System.out.println(
+                    "JWT EMAIL   : "
+                            + email);
 
-                // =================================================
-                // 8. CREATE AUTHENTICATION OBJECT
-                // =================================================
-                // This tells Spring Security:
+            System.out.println(
+                    "JWT ROLE    : "
+                            + role);
+
+            // ====================================================
+            // VALIDATE TOKEN
+            // ====================================================
+
+            boolean valid = email != null
+                    && jwtService.isTokenValid(token);
+
+            System.out.println(
+                    "JWT VALID   : "
+                            + valid);
+
+            // ====================================================
+            // CREATE AUTHENTICATION
+            // ====================================================
+
+            if (valid
+                    && role != null
+                    && !role.isBlank()) {
+
+                // Remove ROLE_ if JWT already contains it
+                String normalizedRole = role.toUpperCase();
+
+                if (normalizedRole.startsWith("ROLE_")) {
+
+                    normalizedRole = normalizedRole.substring(5);
+                }
+
+                // Spring Security expects:
                 //
-                // "This request belongs to this user."
-                //
-                // We also provide the user's role/authority.
-                // =================================================
+                // ADMIN -> ROLE_ADMIN
+                // USER -> ROLE_USER
+
+                String authorityName = "ROLE_" + normalizedRole;
+
+                System.out.println(
+                        "AUTHORITY   : "
+                                + authorityName);
+
+                SimpleGrantedAuthority authority = new SimpleGrantedAuthority(
+                        authorityName);
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         email,
                         null,
                         List.of(authority));
 
-                // =================================================
-                // 9. SAVE AUTHENTICATION
-                // =================================================
-                // Store the authenticated user in Spring's
-                // SecurityContext.
-                //
-                // Now Spring knows:
-                //
-                // User → email
-                // Role → ROLE_USER / ROLE_ADMIN
-                // =================================================
-
                 SecurityContextHolder
                         .getContext()
-                        .setAuthentication(authentication);
+                        .setAuthentication(
+                                authentication);
+
+                System.out.println(
+                        "AUTHENTICATED: YES");
+
+            } else {
+
+                System.out.println(
+                        "AUTHENTICATED: NO");
             }
+
+            System.out.println(
+                    "==========================================");
 
         } catch (Exception e) {
 
-            // ====================================================
-            // INVALID JWT
-            // ====================================================
-            // If the token is:
-            //
-            // - expired
-            // - corrupted
-            // - incorrectly signed
-            // - invalid
-            //
-            // the user will not be authenticated.
-            // ====================================================
-
             System.out.println(
-                    "Invalid JWT: " + e.getMessage());
+                    "JWT ERROR: "
+                            + e.getMessage());
+
+            SecurityContextHolder
+                    .clearContext();
         }
 
         // ========================================================
-        // 10. CONTINUE REQUEST
-        // ========================================================
-        // Pass the request to the next filter/controller.
+        // CONTINUE REQUEST
         // ========================================================
 
-        filterChain.doFilter(request, response);
+        filterChain.doFilter(
+                request,
+                response);
     }
 }
