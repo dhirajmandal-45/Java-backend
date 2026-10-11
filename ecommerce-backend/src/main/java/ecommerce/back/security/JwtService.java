@@ -1,9 +1,12 @@
+```java
 package ecommerce.back.security;
 
+import java.util.Base64;
 import java.util.Date;
 
 import javax.crypto.SecretKey;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import ecommerce.back.entity.User;
@@ -13,92 +16,65 @@ import io.jsonwebtoken.security.Keys;
 @Service
 public class JwtService {
 
-        private final SecretKey secretKey = Keys.hmacShaKeyFor(
-                        "my-super-secret-key-for-jwt-authentication-123456"
-                                        .getBytes());
+    private final SecretKey secretKey;
 
-        // ============================================================
-        // GENERATE JWT TOKEN
-        // ============================================================
-        // We pass the complete User object.
-        //
-        // The JWT will contain:
-        // 1. User email
-        // 2. User role
-        // ============================================================
+    public JwtService(@Value("${jwt.secret}") String encodedSecret) {
 
-        public String generateToken(User user) {
+        byte[] keyBytes = Base64.getDecoder().decode(encodedSecret);
 
-                return Jwts.builder()
+        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+    }
 
-                                // Store email in JWT subject
-                                .subject(user.getEmail())
+    // Generate JWT token
+    public String generateToken(User user) {
 
-                                // Store user's role inside JWT
-                                .claim("role", user.getRole())
+        long sevenDays = 1000L * 60 * 60 * 24 * 7;
 
-                                // Token creation time
-                                .issuedAt(new Date())
+        return Jwts.builder()
+                .subject(user.getEmail())
+                .claim("role", user.getRole())
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + sevenDays))
+                .signWith(secretKey)
+                .compact();
+    }
 
-                                // Token expires after 1 hour
-                                .expiration(
-                                                new Date(
-                                                                System.currentTimeMillis()
-                                                                                + 1000L * 60 * 60 * 24 * 7))
+    // Extract email from token
+    public String extractUsername(String token) {
 
-                                // Sign JWT
-                                .signWith(secretKey)
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
+    }
 
-                                // Convert to String
-                                .compact();
+    // Extract role from token
+    public String extractRole(String token) {
+
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("role", String.class);
+    }
+
+    // Validate token
+    public boolean isTokenValid(String token) {
+
+        try {
+            Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token);
+
+            return true;
+
+        } catch (Exception e) {
+            return false;
         }
-
-        // ============================================================
-        // EXTRACT EMAIL
-        // ============================================================
-
-        public String extractUsername(String token) {
-
-                return Jwts.parser()
-                                .verifyWith(secretKey)
-                                .build()
-                                .parseSignedClaims(token)
-                                .getPayload()
-                                .getSubject();
-        }
-
-        // ============================================================
-        // EXTRACT ROLE
-        // ============================================================
-
-        public String extractRole(String token) {
-
-                return Jwts.parser()
-                                .verifyWith(secretKey)
-                                .build()
-                                .parseSignedClaims(token)
-                                .getPayload()
-                                .get("role", String.class);
-        }
-
-        // ============================================================
-        // CHECK TOKEN
-        // ============================================================
-
-        public boolean isTokenValid(String token) {
-
-                try {
-
-                        Jwts.parser()
-                                        .verifyWith(secretKey)
-                                        .build()
-                                        .parseSignedClaims(token);
-
-                        return true;
-
-                } catch (Exception e) {
-
-                        return false;
-                }
-        }
+    }
 }
+```
