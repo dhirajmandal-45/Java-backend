@@ -1,3 +1,4 @@
+```java
 package ecommerce.back.security;
 
 import java.util.List;
@@ -16,134 +17,86 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class SecurityConfig {
 
-        private final JwtAuthFilter jwtAuthFilter;
+    private final JwtAuthFilter jwtAuthFilter;
 
-        public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
-                this.jwtAuthFilter = jwtAuthFilter;
-        }
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
 
-        // ============================================================
-        // PASSWORD ENCODER
-        // ============================================================
+    @Bean
+    public BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-        @Bean
-        public BCryptPasswordEncoder passwordEncoder() {
-                return new BCryptPasswordEncoder();
-        }
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http) throws Exception {
 
-        // ============================================================
-        // SECURITY FILTER CHAIN
-        // ============================================================
+        http
+            .csrf(csrf -> csrf.disable())
 
-        @Bean
-        public SecurityFilterChain securityFilterChain(
-                        HttpSecurity http) throws Exception {
+            .cors(cors -> cors
+                .configurationSource(corsConfigurationSource()))
 
-                http
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                                // Disable CSRF because we use JWT
-                                .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                    "/freshers/signup",
+                    "/freshers/login"
+                ).permitAll()
 
-                                // Enable CORS
-                                .cors(cors -> cors
-                                                .configurationSource(corsConfigurationSource()))
+                .requestMatchers(
+                    "/products/**",
+                    "/categories/**"
+                ).permitAll()
 
-                                // JWT = stateless
-                                .sessionManagement(session -> session
-                                                .sessionCreationPolicy(
-                                                                SessionCreationPolicy.STATELESS))
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/growth/**").hasRole("ADMIN")
 
-                                // ====================================================
-                                // AUTHORIZATION
-                                // ====================================================
+                .anyRequest().authenticated()
+            )
 
-                                .authorizeHttpRequests(auth -> auth
+            .formLogin(form -> form.disable())
+            .httpBasic(basic -> basic.disable())
 
-                                                // -------------------------------
-                                                // PUBLIC APIs
-                                                // -------------------------------
+            .addFilterBefore(
+                jwtAuthFilter,
+                UsernamePasswordAuthenticationFilter.class
+            );
 
-                                                .requestMatchers(
-                                                                "/freshers/signup",
-                                                                "/freshers/login")
-                                                .permitAll()
+        return http.build();
+    }
 
-                                                .requestMatchers(
-                                                                "/products/**",
-                                                                "/categories/**")
-                                                .permitAll()
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
 
-                                                // -------------------------------
-                                                // ADMIN ONLY
-                                                // -------------------------------
+        CorsConfiguration configuration = new CorsConfiguration();
 
-                                                .requestMatchers("/admin/**")
-                                                .hasRole("ADMIN")
+        configuration.setAllowedOrigins(List.of(
+            "http://localhost:5173",
+            "https://ecommerce-frontend-beta-ecru.vercel.app"
+        ));
 
-                                                // -------------------------------
-                                                // GROWTH ADMIN ONLY
-                                                // -------------------------------
+        configuration.setAllowedMethods(List.of(
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "OPTIONS"
+        ));
 
-                                                .requestMatchers("/growth/**")
-                                                .hasRole("ADMIN")
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
 
-                                                // -------------------------------
-                                                // EVERYTHING ELSE
-                                                // -------------------------------
+        UrlBasedCorsConfigurationSource source =
+            new UrlBasedCorsConfigurationSource();
 
-                                                .anyRequest()
-                                                .authenticated())
+        source.registerCorsConfiguration("/**", configuration);
 
-                                // Disable default login
-                                .formLogin(form -> form.disable())
-
-                                // Disable HTTP Basic
-                                .httpBasic(basic -> basic.disable())
-
-                                // JWT filter
-                                .addFilterBefore(
-                                                jwtAuthFilter,
-                                                UsernamePasswordAuthenticationFilter.class);
-
-                return http.build();
-        }
-
-        // ============================================================
-        // CORS CONFIGURATION
-        // ============================================================
-
-        @Bean
-        public CorsConfigurationSource corsConfigurationSource() {
-
-                CorsConfiguration configuration = new CorsConfiguration();
-
-                // React frontend
-                configuration.setAllowedOrigins(
-                                List.of("http://localhost:5173"));
-
-                // Allowed HTTP methods
-                configuration.setAllowedMethods(
-                                List.of(
-                                                "GET",
-                                                "POST",
-                                                "PUT",
-                                                "DELETE",
-                                                "OPTIONS"));
-
-                // Allow Authorization header
-                configuration.setAllowedHeaders(
-                                List.of("*"));
-
-                // Allow credentials
-                configuration.setAllowCredentials(true);
-
-                // Apply CORS to all APIs
-                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-
-                source.registerCorsConfiguration(
-                                "/**",
-                                configuration);
-
-                return source;
-        }
+        return source;
+    }
 }
+```
