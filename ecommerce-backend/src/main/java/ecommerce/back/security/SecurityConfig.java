@@ -1,4 +1,4 @@
-```java
+
 package ecommerce.back.security;
 
 import java.util.List;
@@ -99,4 +99,4 @@ public class SecurityConfig {
         return source;
     }
 }
-```
+
